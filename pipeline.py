@@ -1,6 +1,6 @@
 # imports usually go at the top of the file
 import os  # to run command-line programs from Python
-import pysam
+# import pysam
 import argparse  # for command-line arguments
 
 parser = argparse.ArgumentParser()  # create ArgumentParser object by calling the ArgumentParser constructor
@@ -18,7 +18,6 @@ args = parser.parse_args()  # calling a method (parse_args()) on an object (pars
 # I didn't even really look at this code. That's the nice thing about code reuse & modularity. You don't have to know the inner workings of someone else's code. All you need to know is what it does at a high level, & how to use it. See the example usage in the comment.
 class ParseFastQ(object):
 	"""Returns a read-by-read fastQ parser analogous to file.readline()"""
-    filePath = "filename"
 	def __init__(self,filePath,headerSymbols=['@','+']):
 		"""Returns a read-by-read fastQ parser analogous to file.readline().
 		Exmpl: parser.next()
@@ -37,7 +36,8 @@ class ParseFastQ(object):
 			self._hdSyms = headerSymbols
 
 	def __iter__(self):
-		return self
+        while True:
+            yield self.__next__()
 
 	def __next__(self):
 		"""Reads in next element, parses, and does minimal verification.
@@ -87,6 +87,12 @@ def trim_beg(fastq):      # example tuple passed into trim_beg(): (@arbitrary-se
 	return fastq  # return = exit function
 	              # This is a value-returning function, so when it exits, it takes something w/ it - in this case, the value of fastq
 
+#@seq13534-419
+GCAGTAGCGGTCATAAGTGGTACATTACGAGATTCGGAGTACCATAGATTCGCATGAATCCCTGTGGATACGAGAGTGTGAGATATATGTACGCCAATCCAGTGTGATACCCATGAGATTTAGGACCGATGATGGTTGAGGACCAAGGATTGACCCGATGGATGCAGATTTGACCCCAGATAGAATAAATGCGATGAGATGATTTGGCCGATAGATAGATAGTGTCGTGAGGTGACGTCCGTCACTGGACGAA
++
+IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIDIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIFFFFDFFDFFDDFDFDFFFFDDFFDDFDDFF##
+
+
 def trim_end(fastq):
 	#while we haven't reached the end of the string, check element i and next element. If both are D/F, exit the loop.
 	i=0
@@ -121,7 +127,7 @@ def pileup(bam):
 	samfile.close()
 
 # open clinical data file for reading
-data=open(args.clinical, "r").readlines()[1:]
+clinical_data=open(args.clinical, "r").readlines()[1:]
 
 # remove fastqs directory if it exists
 if os.path.isdir("fastqs"):
@@ -135,10 +141,10 @@ names=[]
 for line in data:
 	names.append(line.split("\t")[0])
 
-fastqfile = ParseFastQ(args.fastq)
+fastqfile = ParseFastQ(args.fastq)# replced args with file name
 name=None
 for fastq in fastqfile:
-	for line in data:
+	for line in clinical_data:
 		#print(fastq[1][:5])
 		#print(line.split("\t")[2])
 		#print("----------------------------------------------------")
@@ -153,11 +159,13 @@ for fastq in fastqfile:
 	file_.close()
 
 for name in names:
+
 	#os.system("bwa index ${args.ref}") # string interpolation did not work, so used Python string concatenation
 	os.system("bwa index "+args.ref)
 	#os.system("bwa mem ${args.ref} ${name}_trimmed.fastq > ${name}.sam")
 	os.system("bwa mem " + args.ref + " " + name + "_trimmed.fastq > " + name + ".sam")
 	os.system("samtools view -bS ${name}.sam > ${name}.bam")
+    os.system("samtools sort " + name + ".bam > " + name + ".sorted.bam")
 	os.system("samtools index ${name}.sorted.bam")
 	os.system("rm ${name}.sam ${name}.bam")
 	pileup(name+".sorted.bam")
